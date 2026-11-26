@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>瑞西街 3D 檢視</title>
+<style>
+  :root { --bg:#eef1f4; --panel:rgba(255,255,255,.95); --ink:#1d2329; --sub:#5b6670; --line:#d5dbe1; --acc:#1565c0; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family:"Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; display:block; }
+  #panel { position:fixed; left:12px; top:12px; width:262px; max-height:calc(100% - 24px); overflow:auto;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:13px;
+    box-shadow:0 4px 18px rgba(0,0,0,.08); }
+  #panel h1 { font-size:15px; margin:0 0 2px; }
+  #panel .sub { color:var(--sub); font-size:12px; margin-bottom:6px; }
+  #panel h2 { font-size:12px; color:var(--sub); margin:12px 0 4px; font-weight:600; border-top:1px solid var(--line); padding-top:8px; }
+  label.row { display:flex; align-items:center; gap:6px; margin:3px 0; cursor:pointer; }
+  .sw { width:12px; height:12px; border-radius:2px; display:inline-block; flex:none; }
+  .btns { display:flex; flex-wrap:wrap; gap:5px; }
+  button, select { font:inherit; font-size:12px; padding:4px 8px; border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer; }
+  button:hover { border-color:var(--acc); color:var(--acc); }
+  button.on { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .stat { display:flex; gap:6px; margin:4px 0 2px; }
+  .stat span { flex:1; text-align:center; border-radius:6px; padding:3px 0; color:#fff; font-size:12px; font-weight:600; }
+  #clash div { display:flex; gap:6px; align-items:flex-start; padding:4px 3px; border-radius:5px; cursor:pointer; line-height:1.35; }
+  #clash div:hover { background:#eef4fb; }
+  .badge { flex:none; width:20px; height:20px; border-radius:50%; color:#fff; font-size:10.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; }
+  .muted { color:var(--sub); }
+  #info { position:fixed; right:12px; top:12px; width:280px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; font-size:12.5px; display:none; box-shadow:0 4px 18px rgba(0,0,0,.08); }
+  #info table { border-collapse:collapse; width:100%; }
+  #info td { padding:2px 0; vertical-align:top; }
+  #info td:first-child { color:var(--sub); width:78px; }
+  #info .x { float:right; cursor:pointer; color:var(--sub); }
+  #note { position:fixed; right:12px; bottom:10px; max-width:460px; pointer-events:none; font-size:11px; color:var(--sub);
+    background:rgba(255,255,255,.85); padding:5px 8px; border-radius:6px; }
+  #navToggle { position:fixed; right:12px; bottom:44px; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+  #nav[hidden] { display:none; }
+  #nav { position:fixed; right:12px; bottom:76px; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:8px; box-shadow:0 4px 18px rgba(0,0,0,.08); font-size:11px; color:var(--sub); user-select:none; touch-action:none; }
+  #nav .grid { display:grid; grid-template-columns:repeat(3, 34px); gap:4px; justify-content:center; }
+  #nav button { width:34px; height:30px; padding:0; font-size:15px; line-height:1; }
+  #nav .lbl { text-align:center; margin:5px 0 3px; }
+  #nav .row2 { display:flex; gap:4px; justify-content:center; }
+  #dragMode { display:flex; margin-top:6px; }
+  #dragMode button { width:auto; flex:1; font-size:11.5px; padding:4px 6px; height:auto; }
+  #dragMode button:first-child { border-radius:6px 0 0 6px; }
+  #dragMode button:last-child { border-radius:0 6px 6px 0; border-left:none; }
+  #help { font-size:11px; color:var(--sub); margin-top:8px; line-height:1.5; }
+  input[type=range] { width:100%; }
+  @media (max-width:640px) { #nav { bottom:auto; top:46%; transform:scale(.9); transform-origin:right top; } #panel { width:calc(100% - 48px); max-height:42%; } #info { left:12px; right:12px; width:auto; top:auto; bottom:44px; } #note { display:none; } }
+
+  .warn { font-size:11px; color:#b71c1c; background:#fdecea; border-radius:5px; padding:3px 6px; margin:2px 0 6px; }
+  #gate { position:fixed; inset:0; background:#e9edf1; display:flex; align-items:center; justify-content:center; z-index:100; padding:16px; }
+  #gate .box { background:#fff; border:1px solid var(--line); border-radius:12px; max-width:440px; width:100%; padding:20px 22px;
+    box-shadow:0 8px 30px rgba(0,0,0,.12); font-size:13.5px; line-height:1.6; }
+  #gate h1 { font-size:17px; margin:0 0 10px; }
+  #gate .notice { background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 12px; color:#5d4037; margin-bottom:12px; }
+  #gate .notice b { color:#b71c1c; }
+  #gate input[type=password] { width:100%; box-sizing:border-box; font:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; }
+  #gate .go { width:100%; margin-top:10px; padding:9px; font-size:14px; background:var(--acc); color:#fff; border-color:var(--acc); }
+  #gate .go:disabled { opacity:.6; }
+  #gate .err { color:#c62828; min-height:20px; margin-top:6px; font-size:12.5px; }
+  #gate label { display:flex; gap:6px; align-items:flex-start; margin:8px 0; cursor:pointer; }
+</style>
+<script>window.資料名 = new URLSearchParams(location.search).get("d") || "全線";</script>
+<script src="three.min.js"></script>
+</head>
+<body>
+<div id="gate"><form class="box" id="gateForm" autocomplete="off">
+  <h1>瑞西街 3D 檢視（管線衝突分析）</h1>
+  <div class="notice"><b>使用警語</b><br>本頁內容（設計圖說、既有管線位置與埋深、衝突分析）僅供「高雄市前鎮區瑞西街開闢工程」施工團隊進行管線衝突分析使用，不提供外部單位及本工程以外之用途，請勿轉載或散布。<br><span style="font-size:12px">既有管線資料取自高雄市道路挖掘管理中心公開圖資，僅供參考，實際位置以現地試挖為準。</span></div>
+  <label><input type="checkbox" id="gateAgree"> 我已了解上述警語，僅於本工程範圍內使用</label>
+  <input type="password" id="gatePw" placeholder="請輸入密碼" autocomplete="current-password">
+  <button class="go" id="gateGo" type="submit">進入</button>
+  <div class="err" id="gateErr"></div>
+</form></div>
+
+<canvas id="c"></canvas>
+<div id="panel">
+  <h1>瑞西街 3D 檢視</h1>
+  <div class="sub" id="title"></div>
+  <div class="warn">⚠ 僅供本工程施工團隊使用，請勿轉載或散布</div>
+  <label class="row">範圍
+    <select id="dataset"><option value="全線">全線</option><option value="小區">小區（推進井 R-32）</option></select>
+  </label>
+  <div class="stat" id="stat"></div>
+
+  <h2>視角</h2>
+  <div class="btns">
+    <button data-view="bird">鳥瞰</button>
+    <button data-view="side">側面</button>
+    <button data-view="under">地下仰視</button>
+    <button data-view="top">正上方</button>
+  </div>
+  <label class="row" style="margin-top:6px">垂直放大
+    <select id="vex"><option value="1" selected>1 倍（真實比例）</option><option value="2">2 倍</option><option value="3">3 倍</option></select>
+  </label>
+  <div class="muted" style="font-size:11px">放大後圓管會被拉成橢圓，看淨距請用 1 倍</div>
+
+  <h2>圖層</h2>
+  <label class="row"><input type="checkbox" data-layer="ground" checked>地面（航照）</label>
+  <label class="row" style="padding-left:20px">透明度 <input type="range" id="gop" min="0" max="100" value="60"></label>
+  <label class="row"><input type="checkbox" data-layer="box" checked><span class="sw" style="background:#5b7389"></span>新設箱涵</label>
+  <label class="row"><input type="checkbox" data-layer="pile" checked><span class="sw" style="background:#7b8794"></span>鋼板樁（推估）</label>
+  <label class="row"><input type="checkbox" data-layer="shaft" checked><span class="sw" style="background:#90a4ae"></span>工作井</label>
+  <label class="row"><input type="checkbox" data-layer="push" checked><span class="sw" style="background:#a1887f"></span>D1200 推進管</label>
+  <label class="row"><input type="checkbox" data-layer="holes" checked><span class="sw" style="background:#78909c"></span>既有人手孔</label>
+  <div id="cats"></div>
+  <label class="row" style="margin-top:6px"><input type="checkbox" id="onlyClash">只顯示有衝突的管線</label>
+
+  <h2>衝突清單（點一下飛過去）</h2>
+  <div id="clash"></div>
+
+  <div id="help"><b>滑鼠（跟 AutoCAD 一樣）</b><br>
+    滾輪滾動：拉近／推遠（朝游標位置）<br>
+    按住滾輪拖曳：平移<br>
+    Shift＋按住滾輪拖曳：旋轉<br>
+    雙擊滾輪：回到全景<br>
+    <b>另外</b>：左鍵拖曳旋轉、右鍵拖曳平移、左鍵雙擊設旋轉中心、點管線看資料<br>
+    鍵盤：方向鍵移動、Q E 旋轉、＋－ 縮放<br>
+    彩色粗段＝衝突的那一段</div>
+</div>
+<div id="info"><span class="x" id="infoX">✕</span><div id="infoBody"></div></div>
+<button id="navToggle" title="顯示／收起導覽按鈕">導覽按鈕 ▸</button>
+<div id="nav" hidden>
+  <div class="lbl" style="margin-top:0">移動</div>
+  <div class="grid">
+    <span></span><button data-nav="up" title="往前（方向鍵↑／W）">↑</button><span></span>
+    <button data-nav="left" title="往左（←／A）">←</button><button id="home" title="回到起始鳥瞰">⌂</button><button data-nav="right" title="往右（→／D）">→</button>
+    <span></span><button data-nav="down" title="往後（↓／S）">↓</button><span></span>
+  </div>
+  <div class="lbl">旋轉／俯仰／縮放</div>
+  <div class="row2"><button data-nav="rl" title="向左轉（Q）">⟲</button><button data-nav="rr" title="向右轉（E）">⟳</button>
+    <button data-nav="tu" title="往上看（R）">⤒</button><button data-nav="td" title="往下看（F）">⤓</button></div>
+  <div class="row2" style="margin-top:4px"><button data-nav="zi" title="拉近（+）">＋</button><button data-nav="zo" title="推遠（-）">－</button></div>
+  <div id="dragMode"><button data-mode="rot" class="on">拖曳＝旋轉</button><button data-mode="pan">拖曳＝移動</button></div>
+</div>
+<div id="note"></div>
+
+<script>
+window.__start = function () {
+const D = window.DATA;
+const CAT_COLOR = { "電力":"#d32f2f", "電信":"#1976d2", "自來水":"#00acc1", "下水道(雨污水)":"#6d4c41", "瓦斯":"#f9a825", "綜合":"#8e24aa" };
+const LV_COLOR = { A:"#e00000", B:"#ff8c00", C:"#e6c200" };
+const LV_TEXT = { A:"撞結構體", B:"開挖範圍內", C:"近接 0.5 m" };
+document.getElementById("title").textContent = D.標題;
+document.getElementById("dataset").value = D.名稱;
+document.getElementById("dataset").onchange = e => { location.search = "?d=" + encodeURIComponent(e.target.value); };
+document.getElementById("stat").innerHTML = ["A", "B", "C"].map(k => `<span style="background:${LV_COLOR[k]}">${k} ${LV_TEXT[k].slice(0, 3)} ${D.統計[k]}</span>`).join("");
+
+// ───── 場景
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#e9edf1");
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 5000);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.65); sun.position.set(40, 80, 30); scene.add(sun);
+const world = new THREE.Group(); scene.add(world);      // 垂直放大套在這層
+const layers = {};
+function layer(name) { if (!layers[name]) { layers[name] = new THREE.Group(); world.add(layers[name]); } return layers[name]; }
+
+// ───── 掃掠：沿路徑把 2D 斷面拉成實體
+// st: [{x,z,nx,nz}]（水平左法向），prof(i): [[o,y],…] 封閉多邊形（逆時針）
+function sweepGeom(st, prof, caps=true) {
+  const pos = [], idx = [];
+  const P = st.map((s, i) => prof(i).map(([o, y]) => [s.x + s.nx * o, y, s.z + s.nz * o]));
+  const m = P[0].length;
+  P.forEach(ring => ring.forEach(v => pos.push(...v)));
+  for (let i = 0; i < P.length - 1; i++) for (let k = 0; k < m; k++) {
+    const a = i * m + k, b = i * m + (k + 1) % m, c = (i + 1) * m + k, d = (i + 1) * m + (k + 1) % m;
+    idx.push(a, c, b, b, c, d);
+  }
+  if (caps) {
+    for (const [i, flip] of [[0, true], [P.length - 1, false]]) {
+      const base = pos.length / 3; P[i].forEach(v => pos.push(...v));
+      for (let k = 1; k < m - 1; k++) flip ? idx.push(base, base + k + 1, base + k) : idx.push(base, base + k, base + k + 1);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+const sweep = (st, prof, mat, caps=true) => new THREE.Mesh(sweepGeom(st, prof, caps), mat);
+// 圓環斷面（空心圓管）：外壁、內壁、兩端環形端面
+function sweepRing(st, rOut, rIn, mat, n=40) {
+  const ang = Array.from({length:n}, (_, k) => 2 * Math.PI * k / n);
+  const pos = [], idx = [];
+  const ringPts = (s, r) => ang.map(a => [s.x + s.nx * r * Math.cos(a), s.y + r * Math.sin(a), s.z + s.nz * r * Math.cos(a)]);
+  const O = st.map(s => ringPts(s, rOut)), I = st.map(s => ringPts(s, rIn));
+  const add = (rings, flip) => { const base = pos.length / 3; rings.forEach(r => r.forEach(v => pos.push(...v)));
+    for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < n; k++) {
+      const a = base + i * n + k, b = base + i * n + (k + 1) % n, c = base + (i + 1) * n + k, d = base + (i + 1) * n + (k + 1) % n;
+      flip ? idx.push(a, b, c, b, d, c) : idx.push(a, c, b, b, c, d);
+    } };
+  add(O, false); add(I, true);
+  for (const [i, flip] of [[0, true], [st.length - 1, false]]) {   // 端面環
+    const base = pos.length / 3; O[i].forEach(v => pos.push(...v)); I[i].forEach(v => pos.push(...v));
+    for (let k = 0; k < n; k++) { const a = base + k, b = base + (k + 1) % n, c = base + n + k, d = base + n + (k + 1) % n;
+      flip ? idx.push(a, c, b, b, c, d) : idx.push(a, b, c, b, d, c); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return new THREE.Mesh(g, mat);
+}
+function framed(pts) { // pts: [[x,z,y]] → 站點加水平左法向
+  return pts.map((p, i) => {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let dx = b[0] - a[0], dz = b[1] - a[1]; const n = Math.hypot(dx, dz) || 1; dx /= n; dz /= n;
+    return { x:p[0], z:p[1], y:p[2], nx:dz, nz:-dx };
+  });
+}
+const circ = (r, yc, n=16) => Array.from({length:n}, (_, k) => [r * Math.cos(2*Math.PI*k/n), yc + r * Math.sin(2*Math.PI*k/n)]);
+const rect = (hw, hh, yc) => [[-hw, yc - hh], [hw, yc - hh], [hw, yc + hh], [-hw, yc + hh]];
+
+// ───── 地面（航照貼在測量點內插的地形上）
+const G = D.ground;
+let groundMat;
+function gh(x, z) {
+  const fi = (x - G.x0) / G.step, fj = (z - G.z0) / G.step;
+  const i = Math.max(0, Math.min(G.nx - 2, Math.floor(fi))), j = Math.max(0, Math.min(G.ny - 2, Math.floor(fj)));
+  const u = Math.min(1, Math.max(0, fi - i)), v = Math.min(1, Math.max(0, fj - j));
+  return (G.h[j][i] * (1 - u) + G.h[j][i + 1] * u) * (1 - v) + (G.h[j + 1][i] * (1 - u) + G.h[j + 1][i + 1] * u) * v;
+}
+{
+  const pos = [], uv = [], idx = [];
+  for (let j = 0; j < G.ny; j++) for (let i = 0; i < G.nx; i++) {
+    const x = G.x0 + i * G.step, z = G.z0 + j * G.step;
+    pos.push(x, G.h[j][i], z); uv.push((x - G.x0) / G.w, 1 - (z - G.z0) / G.d);
+  }
+  for (let j = 0; j < G.ny - 1; j++) for (let i = 0; i < G.nx - 1; i++) {
+    const a = j * G.nx + i, b = a + 1, c = a + G.nx, d = c + 1; idx.push(a, c, b, b, c, d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  const tex = new THREE.TextureLoader().load(window.BASEMAP, () => render());
+  tex.anisotropy = 8;
+  groundMat = new THREE.MeshBasicMaterial({ map:tex, transparent:true, opacity:0.55, side:THREE.DoubleSide, depthWrite:false });
+  const m = new THREE.Mesh(g, groundMat); m.renderOrder = 10; layer("ground").add(m);
+  D.lines.forEach(l => {
+    const pts = l.pts.map(([x, z]) => new THREE.Vector3(x, gh(x, z) + 0.03, z));
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color:l.色, dashSize:1.2, gapSize:0.6 }));
+    line.computeLineDistances(); layer("ground").add(line);
+  });
+}
+
+// ───── 新設箱涵（頂版、底版、兩側牆分開掃掠）＋鋼板樁
+{
+  const W = D.box_dims;
+  // 箱涵：深一點的石板藍灰＋深色稜線。設成 transparent 只是為了排在「地面航照之後」畫（opacity 仍是 1），
+  // 這樣半透明的地面不會蓋在箱涵上把它洗白
+  const mat = new THREE.MeshLambertMaterial({ color:"#5b7389", transparent:true, opacity:1 });
+  const edgeMat = new THREE.LineBasicMaterial({ color:"#1c2a36", transparent:true, opacity:1 });
+  const addSolid = (grp, mesh) => { mesh.renderOrder = 11; grp.add(mesh);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry, 25), edgeMat); e.renderOrder = 12; grp.add(e); };
+  const pm = new THREE.MeshLambertMaterial({ color:"#7b8794", transparent:true, opacity:0.13, side:THREE.DoubleSide, depthWrite:false });
+  D.boxes.forEach(bx => {
+    const B = bx.rings, st = B.map(b => ({ x:b.p[0], z:b.p[1], nx:b.n[0], nz:b.n[1] }));
+    const ow = i => B[i].w[0], iw = i => B[i].w[1], pw = i => B[i].w[2];   // 每個斷面自己的半寬（起點銜接段會漸寬）
+    const g = layer("box");
+    addSolid(g, sweep(st, i => [[-ow(i), B[i].z[2]], [ow(i), B[i].z[2]], [ow(i), B[i].z[3]], [-ow(i), B[i].z[3]]], mat));   // 頂版
+    addSolid(g, sweep(st, i => [[-ow(i), B[i].z[0]], [ow(i), B[i].z[0]], [ow(i), B[i].z[1]], [-ow(i), B[i].z[1]]], mat));   // 底版
+    addSolid(g, sweep(st, i => [[iw(i), B[i].z[1]], [ow(i), B[i].z[1]], [ow(i), B[i].z[2]], [iw(i), B[i].z[2]]], mat));     // 左牆
+    addSolid(g, sweep(st, i => [[-ow(i), B[i].z[1]], [-iw(i), B[i].z[1]], [-iw(i), B[i].z[2]], [-ow(i), B[i].z[2]]], mat)); // 右牆
+    for (const s of [1, -1]) {
+      const m = sweep(st, i => { const o = s * pw(i), top = gh(st[i].x + st[i].nx * o, st[i].z + st[i].nz * o);
+        return [[o - 0.04, top - W.樁長], [o + 0.04, top - W.樁長], [o + 0.04, top], [o - 0.04, top]]; }, pm);
+      m.renderOrder = 5; layer("pile").add(m);
+    }
+  });
+}
+
+// ───── 工作井
+D.shafts.forEach(S => {
+  const [x, z] = S.p;
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(S.鋼環半徑, S.鋼環半徑, S.地面 - S.開挖底, 48, 1, true),
+    new THREE.MeshLambertMaterial({ color:"#90a4ae", transparent:true, opacity:0.3, side:THREE.DoubleSide, depthWrite:false }));
+  ring.position.set(x, (S.地面 + S.開挖底) / 2, z); ring.renderOrder = 6; layer("shaft").add(ring);
+  const mh = new THREE.Mesh(new THREE.CylinderGeometry(S.人孔半徑 + 0.2, S.人孔半徑 + 0.2, S.地面 - 0.3 - S.井底板頂, 40),
+    new THREE.MeshLambertMaterial({ color:"#cfd8dc" }));
+  mh.position.set(x, (S.地面 - 0.3 + S.井底板頂) / 2, z); layer("shaft").add(mh);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(S.鋼環半徑, S.鋼環半徑, S.井底板頂 - S.開挖底, 48),
+    new THREE.MeshLambertMaterial({ color:"#a7b0b6" }));
+  base.position.set(x, (S.井底板頂 + S.開挖底) / 2, z); layer("shaft").add(base);
+  layer("shaft").add(label(S.名稱.split("（")[0], x, S.地面 + 1.5, z, "#37474f", 0.9));
+});
+
+// ───── D1200 推進管（空心圓管：外徑 / 內徑）
+if (D.push.length > 1) {
+  const st = framed(D.push.map(p => [p.p[0], p.p[1], p.y]));
+  layer("push").add(sweepRing(st, D.push_dims.外徑 / 2, D.push_dims.內徑 / 2,
+    new THREE.MeshLambertMaterial({ color:"#a1887f", side:THREE.DoubleSide, transparent:true, opacity:1 })));
+  layer("push").children.forEach(m => m.renderOrder = 11);   // 排在地面之後畫，不被洗白
+}
+
+// ───── 既有人手孔
+{
+  const mat = new THREE.MeshLambertMaterial({ color:"#78909c", transparent:true, opacity:0.55 });
+  D.holes.forEach(h => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, h.深, 12), mat);
+    m.position.set(h.p[0], h.g - h.深 / 2, h.p[1]); m.userData = { hole:h }; layer("holes").add(m);
+  });
+}
+
+// ───── 既有管線（底色＝類別；衝突那一段疊上粗的彩色段）
+const pipeMeshes = [];
+{
+  const cats = [...new Set(D.pipes.map(p => p.類別))];
+  const box = document.getElementById("cats");
+  cats.forEach(c => {
+    const n = D.pipes.filter(p => p.類別 === c).length;
+    box.insertAdjacentHTML("beforeend", `<label class="row"><input type="checkbox" data-cat="${c}" checked><span class="sw" style="background:${CAT_COLOR[c]||"#888"}"></span>既有${c}（${n}）</label>`);
+  });
+  const lvMat = {}; for (const k in LV_COLOR) lvMat[k] = new THREE.MeshLambertMaterial({ color:LV_COLOR[k], emissive:LV_COLOR[k], emissiveIntensity:0.45, transparent:true, opacity:0.75 });
+  D.pipes.forEach(p => {
+    const mat = new THREE.MeshLambertMaterial({ color:CAT_COLOR[p.類別] || "#888" });
+    const hw = Math.max(0.04, p.寬 / 2), hh = Math.max(0.04, p.高 / 2);
+    const round = Math.abs(p.寬 - p.高) < 1e-6;
+    const prof = (st, i, pad=0) => round ? circ(hw + pad, st[i].y) : rect(hw + pad, hh + pad, st[i].y);
+    const grp = new THREE.Group(); grp.userData = { pipe:p };
+    p.seq.forEach(seq => {
+      if (seq.length < 2) return;
+      const st = framed(seq);
+      const m = sweep(st, i => prof(st, i), mat); m.userData = { pipe:p }; grp.add(m); pipeMeshes.push(m);
+    });
+    p.runs.forEach(run => {
+      const st = framed(run.pts);
+      const m = sweep(st, i => prof(st, i, 0.07), lvMat[run.lv]); m.userData = { pipe:p }; m.renderOrder = 4; grp.add(m); pipeMeshes.push(m);
+    });
+    if (p.編號 && p.代表) {
+      const [x, z, y] = p.代表;
+      grp.add(label(String(p.編號), x, y + 1.6, z, LV_COLOR[p.等級], 0.7, true));
+      grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y, z), new THREE.Vector3(x, y + 1.3, z)]),
+        new THREE.LineBasicMaterial({ color:LV_COLOR[p.等級] })));
+    }
+    layer("pipes").add(grp); p._grp = grp;
+  });
+}
+
+// ───── 里程樁
+D.marks.forEach(m => layer("ground").add(label(m.t, m.p[0], m.g + 0.8, m.p[1], "#263238", D.名稱 === "全線" ? 0.9 : 0.55)));
+
+// ───── 文字標籤（sprite）
+function label(text, x, y, z, color, size=0.6, circle=false) {
+  const c = document.createElement("canvas"), k = 64;
+  const ctx = c.getContext("2d"); ctx.font = `bold ${k * 0.6}px Microsoft JhengHei`;
+  const w = circle ? k : Math.ceil(ctx.measureText(text).width + k * 0.5);
+  c.width = w; c.height = k;
+  ctx.font = `bold ${k * (circle && text.length > 1 ? 0.5 : 0.6)}px Microsoft JhengHei`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if (circle) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(k/2, k/2, k/2 - 3, 0, 7); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.stroke(); ctx.fillStyle = "#fff"; }
+  else { ctx.fillStyle = "rgba(255,255,255,.88)"; ctx.fillRect(0, 6, w, k - 12); ctx.fillStyle = color; }
+  ctx.fillText(text, w / 2, k / 2 + 2);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(c), depthTest:false }));
+  sp.scale.set(size * w / k, size, 1); sp.position.set(x, y, z); sp.renderOrder = 20;
+  return sp;
+}
+
+// ───── 相機控制（旋轉／平移／縮放）
+// ctl.target 存「真實高程」座標；畫面上（垂直放大後）的 y＝target.y × 放大倍數
+const CEN = new THREE.Vector3(G.x0 + G.w / 2, 4, G.z0 + G.d / 2), SIZE = Math.max(G.w, G.d);
+const ctl = { target:CEN.clone(), r:SIZE, th:-0.9, ph:0.95 };
+const VY = () => +document.getElementById("vex").value;
+let dragMode = "rot";                      // 左鍵拖曳：rot 旋轉 / pan 移動
+function placeCam() {
+  const t = ctl.target.clone(); t.y *= VY();
+  camera.position.set(t.x + ctl.r * Math.sin(ctl.ph) * Math.sin(ctl.th), t.y + ctl.r * Math.cos(ctl.ph), t.z + ctl.r * Math.sin(ctl.ph) * Math.cos(ctl.th));
+  camera.lookAt(t); camera.updateMatrixWorld(); render();
+}
+function rotate(dth, dph) { ctl.th += dth; ctl.ph = Math.min(3.1, Math.max(0.05, ctl.ph + dph)); placeCam(); }
+// 平移：往下看時沿地面移動（像看地圖），平視時沿畫面上下左右移動
+function pan(dx, dy) {
+  const s = ctl.r * 0.0016;
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0); right.y = 0; right.normalize();
+  if (ctl.ph < 1.2 || ctl.ph > 1.95) {
+    const fwd = new THREE.Vector3(-Math.sin(ctl.th), 0, -Math.cos(ctl.th));
+    if (ctl.ph > 1.95) fwd.negate();
+    ctl.target.addScaledVector(right, -dx * s).addScaledVector(fwd, dy * s);
+  } else {
+    ctl.target.addScaledVector(right, -dx * s); ctl.target.y += dy * s / VY();
+  }
+  placeCam();
+}
+// 滑鼠指到的點（模型或地面）；沒點到東西就用目標高度的水平面
+function pointAt(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  mouse.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const objs = []; world.traverse(o => { if (o.isMesh && vis(o)) objs.push(o); });
+  const hit = ray.intersectObjects(objs)[0];
+  if (hit) return hit.point.clone();
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -ctl.target.y * VY()), p = new THREE.Vector3();
+  return ray.ray.intersectPlane(plane, p) ? p : null;
+}
+// 縮放：朝滑鼠位置拉近／推遠（沒給位置就朝畫面中心）
+function zoom(k, cx, cy) {
+  const nr = Math.min(SIZE * 4, Math.max(1.5, ctl.r * k)); k = nr / ctl.r;
+  if (cx !== undefined) {
+    const p = pointAt(cx, cy);
+    if (p) { const t = ctl.target.clone(); t.y *= VY(); t.lerp(p, 1 - k); t.y /= VY(); ctl.target.copy(t); }
+  }
+  ctl.r = nr; placeCam();
+}
+function recenter(cx, cy) {   // 雙擊：把點到的位置設成旋轉中心
+  const p = pointAt(cx, cy); if (!p) return;
+  p.y /= VY(); ctl.target.copy(p); ctl.r = Math.min(ctl.r, 40); placeCam();
+}
+let drag = null;
+const touches = new Map(); let pinch = null;
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+// 按住滾輪時，Windows 瀏覽器預設會跳出「自動捲動」把拖曳吃掉 → 在 3D 畫面上關掉
+canvas.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });
+canvas.addEventListener("auxclick", e => { if (e.button === 1) e.preventDefault(); });
+// 滑鼠（AutoCAD 習慣）：滾輪＝縮放、按住滾輪拖曳＝平移、Shift＋按住滾輪拖曳＝旋轉、雙擊滾輪＝回全景
+//   另外：左鍵拖曳＝旋轉（可切成移動）、右鍵拖曳＝平移
+canvas.addEventListener("pointerdown", e => {
+  if (e.pointerType === "touch") touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (e.button === 1) e.preventDefault();
+  const other = dragMode === "rot" ? "pan" : "rot";
+  const b = e.button === 1 ? (e.shiftKey ? "rot" : "pan")
+          : e.button === 2 ? "pan"
+          : (e.shiftKey || e.ctrlKey) ? other : dragMode;
+  drag = { x:e.clientX, y:e.clientY, b, btn:e.button, moved:false };
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+});
+canvas.addEventListener("pointermove", e => {
+  if (e.pointerType === "touch" && touches.has(e.pointerId)) {
+    touches.set(e.pointerId, [e.clientX, e.clientY]);
+    if (touches.size === 2) {
+      const [a, b] = [...touches.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (pinch) { zoom(pinch.d / d, c[0], c[1]); pan(c[0] - pinch.c[0], c[1] - pinch.c[1]); }
+      pinch = { d, c }; if (drag) drag.moved = true; return;
+    }
+  }
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+  if (drag.b === "rot") rotate(-dx * 0.006, -dy * 0.006); else pan(dx, dy);
+});
+const endPtr = e => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; };
+let lastTap = { t:0, btn:-1 };
+canvas.addEventListener("pointerup", e => {
+  endPtr(e);
+  if (drag && !drag.moved) {
+    const now = performance.now(), dbl = now - lastTap.t < 400 && lastTap.btn === drag.btn;
+    if (drag.btn === 1) { if (dbl) setView("bird"); }                 // 雙擊滾輪：回全景
+    else if (drag.btn === 0) { if (dbl) recenter(e.clientX, e.clientY); else pick(e); }   // 左鍵：點選／雙擊設中心
+    lastTap = { t:now, btn:drag.btn };
+  }
+  drag = null;
+});
+canvas.addEventListener("pointercancel", e => { endPtr(e); drag = null; });
+canvas.addEventListener("wheel", e => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.15 : 0.87, e.clientX, e.clientY); }, { passive:false });
+// 鍵盤：方向鍵／WASD 移動、Q E 旋轉、R F 俯仰、+ - 縮放
+addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  const k = e.key.toLowerCase(), m = 40;
+  const act = { arrowup:() => pan(0, m), w:() => pan(0, m), arrowdown:() => pan(0, -m), s:() => pan(0, -m),
+    arrowleft:() => pan(m, 0), a:() => pan(m, 0), arrowright:() => pan(-m, 0), d:() => pan(-m, 0),
+    q:() => rotate(0.06, 0), e:() => rotate(-0.06, 0), r:() => rotate(0, -0.05), f:() => rotate(0, 0.05),
+    "+":() => zoom(0.85), "=":() => zoom(0.85), "-":() => zoom(1.18), "_":() => zoom(1.18) }[k];
+  if (act) { act(); e.preventDefault(); }
+});
+// 畫面上的導覽按鈕（按住會連續動）
+document.querySelectorAll("#nav [data-nav]").forEach(btn => {
+  const m = 14, fn = { up:() => pan(0, m), down:() => pan(0, -m), left:() => pan(m, 0), right:() => pan(-m, 0),
+    rl:() => rotate(0.04, 0), rr:() => rotate(-0.04, 0), tu:() => rotate(0, -0.03), td:() => rotate(0, 0.03),
+    zi:() => zoom(0.93), zo:() => zoom(1.07) }[btn.dataset.nav];
+  let iv = null;
+  const stop = () => { clearInterval(iv); iv = null; };
+  btn.addEventListener("pointerdown", e => { e.preventDefault(); fn(); stop(); iv = setInterval(fn, 40); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => btn.addEventListener(ev, stop));
+});
+document.getElementById("navToggle").onclick = e => {
+  const nav = document.getElementById("nav"); nav.hidden = !nav.hidden;
+  e.target.textContent = nav.hidden ? "導覽按鈕 ▸" : "收起導覽 ▾";
+};
+document.querySelectorAll("#dragMode button").forEach(b => b.onclick = () => {
+  dragMode = b.dataset.mode;
+  document.querySelectorAll("#dragMode button").forEach(x => x.classList.toggle("on", x === b));
+});
+
+// ───── 視角預設（依資料範圍自動算）
+const VIEWS = {
+  bird:  { r:SIZE * 0.85, th:-0.75, ph:0.95 },
+  side:  { r:SIZE * 0.55, th:1.3,  ph:1.42 },
+  under: { r:SIZE * 0.5,  th:0.9,  ph:2.05 },
+  top:   { r:SIZE * 1.15, th:0,    ph:0.06 },
+};
+function setView(v) { const p = VIEWS[v]; ctl.target.copy(CEN); Object.assign(ctl, { r:p.r, th:p.th, ph:p.ph });
+  document.querySelectorAll("[data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === v)); placeCam(); }
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => setView(b.dataset.view));
+document.getElementById("home").onclick = () => setView("bird");
+
+// ───── 介面
+document.querySelectorAll("[data-layer]").forEach(cb => cb.onchange = () => { layer(cb.dataset.layer).visible = cb.checked; render(); });
+document.getElementById("gop").oninput = e => { groundMat.opacity = 1 - e.target.value / 100; render(); };
+groundMat.opacity = 1 - document.getElementById("gop").value / 100;
+function applyFilter() {
+  const only = document.getElementById("onlyClash").checked;
+  const on = new Set([...document.querySelectorAll("[data-cat]")].filter(c => c.checked).map(c => c.dataset.cat));
+  D.pipes.forEach(p => p._grp.visible = on.has(p.類別) && (!only || !!p.等級)); render();   // 一定要給 true/false，null 會被 three.js 當成顯示
+}
+document.querySelectorAll("[data-cat]").forEach(c => c.onchange = applyFilter);
+document.getElementById("onlyClash").onchange = applyFilter;
+function setVex() {
+  const v = +document.getElementById("vex").value; world.scale.y = v;
+  world.traverse(o => { if (o.isSprite) { if (!o.userData.sy) o.userData.sy = o.scale.y; o.scale.y = o.userData.sy / v; } });
+  placeCam();
+}
+document.getElementById("vex").onchange = setVex;
+
+const list = document.getElementById("clash");
+D.pipes.filter(p => p.編號).sort((a, b) => a.編號 - b.編號).forEach(p => {
+  const d = document.createElement("div");
+  d.innerHTML = `<span class="badge" style="background:${LV_COLOR[p.等級]}">${p.編號}</span><span><b>${p.位置}</b>　${p.單位}<br>
+    <span class="muted">${p.衝突.filter(s => s[0] === p.等級).map(s => s.slice(2)).join("、")}</span>${p.備註 ? `<br><span style="color:#2e7d32">※ ${p.備註.split("，")[0]}</span>` : ""}</span>`;
+  d.onclick = () => { const [x, z, y] = p.代表; ctl.target.set(x, y, z); ctl.r = 18; placeCam(); showPipe(p); };
+  list.appendChild(d);
+});
+
+// ───── 點選看資料
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+const hl = new THREE.MeshBasicMaterial({ color:"#ffffff" }); let picked = null;
+function vis(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
+function pick(e) {
+  const r = canvas.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects([...pipeMeshes, ...layers.holes.children].filter(vis))[0];
+  if (!hit) { hideInfo(); return; }
+  if (hit.object.userData.pipe) showPipe(hit.object.userData.pipe); else showHole(hit.object.userData.hole);
+}
+function row(k, v) { return `<tr><td>${k}</td><td>${v ?? "—"}</td></tr>`; }
+function showPipe(p) {
+  const size = Math.abs(p.寬 - p.高) < 1e-6 ? `Ø ${(p.寬 * 100).toFixed(1)} cm` : `${(p.寬 * 100).toFixed(0)}×${(p.高 * 100).toFixed(0)} cm`;
+  document.getElementById("infoBody").innerHTML = `<b>${p.編號 ? `#${p.編號} ` : ""}${p.單位}</b><table>
+    ${row("類別", p.類別)}${row("管徑／斷面", size)}${row("管數", p.管數)}${row("材質", p.材質)}
+    ${row("圖資埋深", `${p.埋深[0]} ～ ${p.埋深[1]} m`)}${row("衝突", p.等級 ? `<b style="color:${LV_COLOR[p.等級]}">${LV_TEXT[p.等級]}</b>（${p.位置}）<br>${p.衝突.join("<br>")}` : "無")}
+    ${p.備註 ? row("備註", `<span style="color:#2e7d32">${p.備註}</span>`) : ""}
+    ${row("管線編號", p.ID)}${row("資料來源", p.來源 || "（未註明）")}</table>`;
+  document.getElementById("info").style.display = "block";
+  highlight(p._grp);
+}
+function showHole(h) {
+  document.getElementById("infoBody").innerHTML = `<b>${h.單位}</b><table>${row("類別", h.類別)}${row("孔深", h.深 + " m")}${row("編號", h.ID)}</table>`;
+  document.getElementById("info").style.display = "block"; highlight(null);
+}
+function highlight(g) {
+  if (picked) picked.children.forEach(m => { if (m.isMesh && m.userData._mat) m.material = m.userData._mat; });
+  picked = g;
+  if (g) g.children.forEach(m => { if (m.isMesh) { m.userData._mat = m.material; m.material = hl; } });
+  render();
+}
+function hideInfo() { document.getElementById("info").style.display = "none"; highlight(null); }
+document.getElementById("infoX").onclick = hideInfo;
+document.getElementById("note").textContent = D.說明;
+
+// ───── 繪製
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); render(); }
+let queued = false;
+function render() { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; renderer.render(scene, camera); }); }
+addEventListener("resize", resize);
+resize();
+// 網址加 #side、#under、#top 直接開在該視角；加 ,clash 只顯示衝突管線
+{ const h = location.hash.slice(1).split(","); setView(VIEWS[h[0]] ? h[0] : "bird");
+  if (h.includes("clash")) { document.getElementById("onlyClash").checked = true; applyFilter(); } }
+setVex();
+};
+</script>
+<script>
+// ───── 警語＋密碼：密碼對了才在瀏覽器裡解密資料（AES-256-GCM，PBKDF2-SHA256 310000 次）
+(function () {
+  const FILE = { "全線": "full", "小區": "zone" }[window.資料名] || "full";
+  const $ = id => document.getElementById(id);
+  async function getBin(name) {
+    const r = await fetch(`data/${FILE}_${name}.bin`, { cache:"no-cache" });
+    if (!r.ok) throw new Error("讀不到資料檔（" + r.status + "）");
+    const b = new Uint8Array(await r.arrayBuffer());
+    if (String.fromCharCode(b[0], b[1], b[2]) !== "RX1") throw new Error("資料檔格式不對");
+    return { salt:b.slice(3, 19), iv:b.slice(19, 31), ct:b.slice(31) };
+  }
+  async function unlock(pw) {
+    const [d, m] = await Promise.all([getBin("data"), getBin("map")]);
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey({ name:"PBKDF2", salt:d.salt, iterations:310000, hash:"SHA-256" },
+      base, { name:"AES-GCM", length:256 }, false, ["decrypt"]);
+    let data, map;
+    try {
+      data = await crypto.subtle.decrypt({ name:"AES-GCM", iv:d.iv }, key, d.ct);
+      map = await crypto.subtle.decrypt({ name:"AES-GCM", iv:m.iv }, key, m.ct);
+    } catch (e) { throw new Error("密碼錯誤"); }
+    window.DATA = JSON.parse(new TextDecoder().decode(data));
+    window.BASEMAP = URL.createObjectURL(new Blob([map], { type:"image/jpeg" }));
+  }
+  async function enter(pw) {
+    $("gateGo").disabled = true; $("gateErr").textContent = "解密中…";
+    try {
+      await unlock(pw);
+      try { sessionStorage.setItem("ruixi_pw", pw); } catch (e) {}     // 只存在這個分頁，關掉就沒了；切換全線／小區不用再輸入
+      $("gate").remove();
+      window.__start();
+    } catch (e) {
+      $("gateErr").textContent = e.message; $("gateGo").disabled = false;
+      try { sessionStorage.removeItem("ruixi_pw"); } catch (e2) {}
+    }
+  }
+  $("gateForm").addEventListener("submit", ev => {
+    ev.preventDefault();
+    if (!$("gateAgree").checked) { $("gateErr").textContent = "請先勾選「我已了解上述警語」"; return; }
+    if (!$("gatePw").value) { $("gateErr").textContent = "請輸入密碼"; return; }
+    enter($("gatePw").value);
+  });
+  let saved = null; try { saved = sessionStorage.getItem("ruixi_pw"); } catch (e) {}
+  if (saved) { $("gateAgree").checked = true; enter(saved); }
+})();
+</script>
+</body>
+</html>
